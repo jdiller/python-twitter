@@ -2978,7 +2978,10 @@ class Api(object):
         If not specified, defaults to the authenticated user. [Optional]
 
     Returns:
-      A sequence of twitter.User instances, one for each friend
+      A dict containing:
+      next_cursor: id of the next cursor page
+      previous_cursor: id of the previous cursor page
+      users: A sequence of twitter.User instances, one for each friend
     '''
     if not user and not self._oauth_consumer:
       raise TwitterError("twitter.Api instance must be authenticated")
@@ -2990,7 +2993,29 @@ class Api(object):
     parameters['cursor'] = cursor
     json = self._FetchUrl(url, parameters=parameters)
     data = self._ParseAndCheckTwitter(json)
-    return [User.NewFromJsonDict(x) for x in data['users']]
+    return {
+            'next_cursor' : data['next_cursor'],
+            'previous_cursor' : data['previous_cursor'],
+            'users':  [User.NewFromJsonDict(x) for x in data['users']]
+           }
+
+  def GetAllFriends(self, user=None):
+     '''Fetch all friends
+
+     Makes multiple calls and may blow through API limit for long friends lists
+
+     Returns:
+        A sequence of twitter.User instances
+     '''
+     friends = []
+     cursor = -1
+     while cursor != 0:
+        result = self.GetFriends(user, cursor=cursor)
+        print result
+        friends.extend(result['users'])
+        cursor = result['next_cursor']
+     return friends
+
 
   def GetFriendIDs(self, user=None, cursor=-1):
       '''Returns a list of twitter user id's for every person
@@ -3044,23 +3069,40 @@ class Api(object):
         Note: there are pagination limits.
 
     Returns:
-      A sequence of twitter.User instances, one for each follower
+      A dict containing:
+      next_cursor: id of the next cursor page
+      previous_cursor: id of the previous cursor page
+      users: A sequence of twitter.User instances, one for each friend
     '''
     if not self._oauth_consumer:
       raise TwitterError("twitter.Api instance must be authenticated")
     url = '%s/statuses/followers.json' % self.base_url
     result = []
-    while True:
-      parameters = { 'cursor': cursor }
-      json = self._FetchUrl(url, parameters=parameters)
-      data = self._ParseAndCheckTwitter(json)
-      result += [User.NewFromJsonDict(x) for x in data['users']]
-      if 'next_cursor' in data:
-        if data['next_cursor'] == 0 or data['next_cursor'] == data['previous_cursor']:
-          break
-      else:
-        break
-    return result
+    parameters = { 'cursor': cursor }
+    json = self._FetchUrl(url, parameters=parameters)
+    data = self._ParseAndCheckTwitter(json)
+    return {
+            'next_cursor' : data['next_cursor'],
+            'previous_cursor' : data['previous_cursor'],
+            'users' : [User.NewFromJsonDict(x) for x in data['users']]
+           }
+
+  def GetAllFollowers(self):
+     '''Fetch all followers
+
+     Makes multiple calls and may blow through API limit for long follower lists
+
+     Returns:
+        A sequence of twitter.User instances
+     '''
+
+     followers = []
+     cursor = -1
+     while cursor != 0:
+        result = self.GetFollowers(cursor=cursor)
+        followers.extend(result['users'])
+        cursor = result['next_cursor']
+     return followers
 
   def GetFeatured(self):
     '''Fetch the sequence of twitter.User instances featured on twitter.com
