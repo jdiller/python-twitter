@@ -3011,7 +3011,6 @@ class Api(object):
      cursor = -1
      while cursor != 0:
         result = self.GetFriends(user, cursor=cursor)
-        print result
         friends.extend(result['users'])
         cursor = result['next_cursor']
      return friends
